@@ -1,4 +1,4 @@
-basePath: /
+basePath: /api/v1
 definitions:
   dto.CreateJobDocResponse:
     properties:
@@ -305,7 +305,7 @@ info:
   title: Showcaster API
   version: "1.0"
 paths:
-  /api/auth/login:
+  /auth/login:
     post:
       consumes:
       - application/json
@@ -343,7 +343,7 @@ paths:
       summary: Login
       tags:
       - Auth
-  /api/auth/register:
+  /auth/register:
     post:
       consumes:
       - application/json
@@ -380,7 +380,7 @@ paths:
       summary: Register a new user
       tags:
       - Auth
-  /api/auth/resend-otp:
+  /auth/resend-otp:
     post:
       consumes:
       - application/json
@@ -416,7 +416,7 @@ paths:
       summary: Resend OTP
       tags:
       - Auth
-  /api/auth/verify-otp:
+  /auth/verify-otp:
     post:
       consumes:
       - application/json
@@ -457,7 +457,28 @@ paths:
       summary: Verify email OTP
       tags:
       - Auth
-  /api/jobs:
+  /health:
+    get:
+      description: |-
+        Verifies that the service is running and the database is reachable.
+        Attempts a DB ping with a 2-second deadline; always responds within 3 seconds.
+
+        Suitable for use as a liveness/readiness probe in container orchestration.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service and database are healthy
+          schema:
+            $ref: '#/definitions/dto.HealthResponse'
+        "503":
+          description: Database ping failed or timed out
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Health check
+      tags:
+      - System
+  /jobs:
     get:
       description: |-
         Returns a paginated list of the authenticated user's jobs ordered by `createdAt` descending.
@@ -501,7 +522,7 @@ paths:
       summary: List jobs
       tags:
       - Jobs
-  /api/jobs/{id}:
+  /jobs/{id}:
     delete:
       description: |-
         Permanently deletes a job and all its associated steps in a single atomic transaction.
@@ -594,7 +615,7 @@ paths:
       summary: Get job status
       tags:
       - Jobs
-  /api/jobs/generate:
+  /jobs/generate:
     post:
       consumes:
       - application/json
@@ -641,7 +662,7 @@ paths:
       summary: Submit a video generation job
       tags:
       - Jobs
-  /api/upload/image:
+  /upload/image:
     post:
       consumes:
       - multipart/form-data
@@ -691,27 +712,6 @@ paths:
       summary: Upload a model or product image
       tags:
       - Upload
-  /health:
-    get:
-      description: |-
-        Verifies that the service is running and the database is reachable.
-        Attempts a DB ping with a 2-second deadline; always responds within 3 seconds.
-
-        Suitable for use as a liveness/readiness probe in container orchestration.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Service and database are healthy
-          schema:
-            $ref: '#/definitions/dto.HealthResponse'
-        "503":
-          description: Database ping failed or timed out
-          schema:
-            $ref: '#/definitions/dto.ErrorResponse'
-      summary: Health check
-      tags:
-      - System
 securityDefinitions:
   BearerAuth:
     description: 'Enter your JWT token as: Bearer <token>'

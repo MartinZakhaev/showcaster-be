@@ -40,7 +40,7 @@ type JobHandler struct {
 //	@Failure		400		{object}	dto.ValidationErrorResponse		"Missing or invalid field"
 //	@Failure		401		{object}	dto.ErrorResponse				"Missing or invalid JWT"
 //	@Failure		503		{object}	dto.ErrorResponse				"Job queue full or database unavailable"
-//	@Router			/api/jobs/generate [post]
+//	@Router			/jobs/generate [post]
 func (h *JobHandler) CreateJob(c *fiber.Ctx) error {
 	var req dto.CreateJobRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -91,7 +91,7 @@ func (h *JobHandler) CreateJob(c *fiber.Ctx) error {
 //	@Failure		403	{object}	dto.ErrorResponse		"Job belongs to a different user"
 //	@Failure		404	{object}	dto.ErrorResponse		"Job not found"
 //	@Failure		503	{object}	dto.ErrorResponse		"Database unavailable"
-//	@Router			/api/jobs/{id} [get]
+//	@Router			/jobs/{id} [get]
 func (h *JobHandler) GetJob(c *fiber.Ctx) error {
 	userID := middleware.ExtractUserID(c)
 	jobID := c.Params("id")
@@ -130,7 +130,7 @@ func (h *JobHandler) GetJob(c *fiber.Ctx) error {
 //	@Failure		400		{object}	dto.ErrorResponse		"Invalid page or limit value"
 //	@Failure		401		{object}	dto.ErrorResponse		"Missing or invalid JWT"
 //	@Failure		503		{object}	dto.ErrorResponse		"Database unavailable"
-//	@Router			/api/jobs [get]
+//	@Router			/jobs [get]
 func (h *JobHandler) ListJobs(c *fiber.Ctx) error {
 	userID := middleware.ExtractUserID(c)
 
@@ -188,7 +188,7 @@ func (h *JobHandler) ListJobs(c *fiber.Ctx) error {
 //	@Failure		404	{object}	dto.ErrorResponse		"Job not found"
 //	@Failure		409	{object}	dto.ErrorResponse		"Job is still pending or processing — cannot delete"
 //	@Failure		503	{object}	dto.ErrorResponse		"Database unavailable"
-//	@Router			/api/jobs/{id} [delete]
+//	@Router			/jobs/{id} [delete]
 func (h *JobHandler) DeleteJob(c *fiber.Ctx) error {
 	userID := middleware.ExtractUserID(c)
 	jobID := c.Params("id")

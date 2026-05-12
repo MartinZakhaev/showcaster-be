@@ -40,7 +40,7 @@ type UploadHandler struct {
 //	@Failure		413		{object}	dto.ErrorResponse			"File exceeds the 10 MB size limit"
 //	@Failure		415		{object}	dto.ErrorResponse			"Unsupported file type (only JPEG and PNG accepted)"
 //	@Failure		502		{object}	dto.ErrorResponse			"Cloudinary upload failed"
-//	@Router			/api/upload/image [post]
+//	@Router			/upload/image [post]
 func (h *UploadHandler) UploadImage(c *fiber.Ctx) error {
 	header, err := c.FormFile("file")
 	if err != nil || header == nil {

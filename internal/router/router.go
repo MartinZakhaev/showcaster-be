@@ -12,26 +12,26 @@ import (
 
 // Setup registers all routes and middleware on the provided Fiber app.
 //
-// Global middleware:
-//   - recover.New() catches any unhandled panics and returns HTTP 500.
+// Unversioned routes (infrastructure):
 //
-// Public routes (no authentication required):
-//
-//	POST /api/auth/register
-//	POST /api/auth/login
-//	POST /api/auth/verify-otp
-//	POST /api/auth/resend-otp
-//	GET  /health
-//	GET  /docs        — Scalar API UI
+//	GET  /health            — liveness / readiness probe
+//	GET  /docs              — Scalar API UI
 //	GET  /docs/openapi.json — raw OpenAPI spec
 //
-// Protected routes (JWT required):
+// Versioned public routes (no JWT required):
 //
-//	POST   /api/upload/image
-//	POST   /api/jobs/generate
-//	GET    /api/jobs
-//	GET    /api/jobs/:id
-//	DELETE /api/jobs/:id
+//	POST /api/v1/auth/register
+//	POST /api/v1/auth/login
+//	POST /api/v1/auth/verify-otp
+//	POST /api/v1/auth/resend-otp
+//
+// Versioned protected routes (JWT required):
+//
+//	POST   /api/v1/upload/image
+//	POST   /api/v1/jobs/generate
+//	GET    /api/v1/jobs
+//	GET    /api/v1/jobs/:id
+//	DELETE /api/v1/jobs/:id
 func Setup(
 	app *fiber.App,
 	authH *handlers.AuthHandler,
@@ -40,17 +40,14 @@ func Setup(
 	healthH *handlers.HealthHandler,
 	jwtSecret string,
 ) {
-	// Global panic recovery middleware.
+	// Global panic recovery — returns HTTP 500 on any unhandled panic.
 	app.Use(recover.New())
 
-	// Public routes — no JWT required.
-	app.Post("/api/auth/register", authH.Register)
-	app.Post("/api/auth/login", authH.Login)
-	app.Post("/api/auth/verify-otp", authH.VerifyOTP)
-	app.Post("/api/auth/resend-otp", authH.ResendOTP)
+	// ── Infrastructure routes (unversioned) ──────────────────────────────────
+
 	app.Get("/health", healthH.Health)
 
-	// Scalar API docs UI — served from the embedded swaggo spec.
+	// Scalar API docs UI.
 	app.Get("/docs", func(c *fiber.Ctx) error {
 		spec, err := swag.ReadDoc()
 		if err != nil {
@@ -70,7 +67,7 @@ func Setup(
 		return c.SendString(htmlContent)
 	})
 
-	// Serve the raw OpenAPI JSON spec from the embedded swaggo docs.
+	// Raw OpenAPI JSON spec.
 	app.Get("/docs/openapi.json", func(c *fiber.Ctx) error {
 		spec, err := swag.ReadDoc()
 		if err != nil {
@@ -80,13 +77,24 @@ func Setup(
 		return c.SendString(spec)
 	})
 
+	// ── API v1 ───────────────────────────────────────────────────────────────
+
+	v1 := app.Group("/api/v1")
+
+	// Public auth routes — no JWT required.
+	auth := v1.Group("/auth")
+	auth.Post("/register", authH.Register)
+	auth.Post("/login", authH.Login)
+	auth.Post("/verify-otp", authH.VerifyOTP)
+	auth.Post("/resend-otp", authH.ResendOTP)
+
 	// Protected routes — JWT middleware applied to the group.
-	api := app.Group("/api", middleware.JWTMiddleware(jwtSecret))
+	protected := v1.Group("", middleware.JWTMiddleware(jwtSecret))
 
-	api.Post("/upload/image", uploadH.UploadImage)
+	protected.Post("/upload/image", uploadH.UploadImage)
 
-	api.Post("/jobs/generate", jobH.CreateJob)
-	api.Get("/jobs", jobH.ListJobs)
-	api.Get("/jobs/:id", jobH.GetJob)
-	api.Delete("/jobs/:id", jobH.DeleteJob)
+	protected.Post("/jobs/generate", jobH.CreateJob)
+	protected.Get("/jobs", jobH.ListJobs)
+	protected.Get("/jobs/:id", jobH.GetJob)
+	protected.Delete("/jobs/:id", jobH.DeleteJob)
 }

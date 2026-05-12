@@ -30,7 +30,7 @@ type AuthHandler struct {
 //	@Failure		400		{object}	dto.ValidationErrorResponse		"Validation error (missing or invalid field)"
 //	@Failure		409		{object}	dto.ErrorResponse				"Email already registered"
 //	@Failure		503		{object}	dto.ErrorResponse				"Database unavailable"
-//	@Router			/api/auth/register [post]
+//	@Router			/auth/register [post]
 func (h *AuthHandler) Register(c *fiber.Ctx) error {
 	var req dto.RegisterRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -78,7 +78,7 @@ func (h *AuthHandler) Register(c *fiber.Ctx) error {
 //	@Failure		400		{object}	dto.ValidationErrorResponse	"Missing or invalid field"
 //	@Failure		401		{object}	dto.ErrorResponse			"Invalid credentials (wrong password or unknown email)"
 //	@Failure		503		{object}	dto.ErrorResponse			"Database unavailable"
-//	@Router			/api/auth/login [post]
+//	@Router			/auth/login [post]
 func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	var req dto.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -126,7 +126,7 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 //	@Failure		404		{object}	dto.ErrorResponse			"Email not found"
 //	@Failure		409		{object}	dto.ErrorResponse			"Account already verified"
 //	@Failure		503		{object}	dto.ErrorResponse			"Database unavailable"
-//	@Router			/api/auth/verify-otp [post]
+//	@Router			/auth/verify-otp [post]
 func (h *AuthHandler) VerifyOTP(c *fiber.Ctx) error {
 	var req dto.VerifyOTPRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -180,7 +180,7 @@ func (h *AuthHandler) VerifyOTP(c *fiber.Ctx) error {
 //	@Failure		400		{object}	dto.ValidationErrorResponse	"Missing or invalid email"
 //	@Failure		404		{object}	dto.ErrorResponse			"Email not found"
 //	@Failure		503		{object}	dto.ErrorResponse			"Database unavailable"
-//	@Router			/api/auth/resend-otp [post]
+//	@Router			/auth/resend-otp [post]
 func (h *AuthHandler) ResendOTP(c *fiber.Ctx) error {
 	var req dto.ResendOTPRequest
 	if err := c.BodyParser(&req); err != nil {

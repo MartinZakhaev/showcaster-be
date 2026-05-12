@@ -21,7 +21,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/api/auth/login": {
+        "/auth/login": {
             "post": {
                 "description": "Authenticates a registered and verified user with email and password.\nReturns a signed HS256 JWT valid for exactly 24 hours (86400 seconds).\nBoth wrong-password and unknown-email return the same 401 body to prevent user enumeration.",
                 "consumes": [
@@ -73,7 +73,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/auth/register": {
+        "/auth/register": {
             "post": {
                 "description": "Creates a new user account with the provided email, full name, and password.\nOn success a 6-digit numeric OTP is sent to the registered email address.\nThe account must be verified via POST /api/auth/verify-otp before login is possible.",
                 "consumes": [
@@ -125,7 +125,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/auth/resend-otp": {
+        "/auth/resend-otp": {
             "post": {
                 "description": "Generates a fresh 6-digit OTP, resets the failure counter, and sends it to the user's email.\nUse this when the original OTP has expired or was never received.",
                 "consumes": [
@@ -177,7 +177,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/auth/verify-otp": {
+        "/auth/verify-otp": {
             "post": {
                 "description": "Verifies the 6-digit numeric OTP that was sent to the user's email during registration.\nOn success the account is marked as verified and a JWT is returned (same shape as login).\nThe OTP expires after 10 minutes. After 5 consecutive wrong attempts the OTP is permanently invalidated.",
                 "consumes": [
@@ -235,7 +235,33 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/jobs": {
+        "/health": {
+            "get": {
+                "description": "Verifies that the service is running and the database is reachable.\nAttempts a DB ping with a 2-second deadline; always responds within 3 seconds.\n\nSuitable for use as a liveness/readiness probe in container orchestration.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "Service and database are healthy",
+                        "schema": {
+                            "$ref": "#/definitions/dto.HealthResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Database ping failed or timed out",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/jobs": {
             "get": {
                 "security": [
                     {
@@ -295,7 +321,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/jobs/generate": {
+        "/jobs/generate": {
             "post": {
                 "security": [
                     {
@@ -352,7 +378,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/jobs/{id}": {
+        "/jobs/{id}": {
             "get": {
                 "security": [
                     {
@@ -474,7 +500,7 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/upload/image": {
+        "/upload/image": {
             "post": {
                 "security": [
                     {
@@ -534,32 +560,6 @@ const docTemplate = `{
                     },
                     "502": {
                         "description": "Cloudinary upload failed",
-                        "schema": {
-                            "$ref": "#/definitions/dto.ErrorResponse"
-                        }
-                    }
-                }
-            }
-        },
-        "/health": {
-            "get": {
-                "description": "Verifies that the service is running and the database is reachable.\nAttempts a DB ping with a 2-second deadline; always responds within 3 seconds.\n\nSuitable for use as a liveness/readiness probe in container orchestration.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "System"
-                ],
-                "summary": "Health check",
-                "responses": {
-                    "200": {
-                        "description": "Service and database are healthy",
-                        "schema": {
-                            "$ref": "#/definitions/dto.HealthResponse"
-                        }
-                    },
-                    "503": {
-                        "description": "Database ping failed or timed out",
                         "schema": {
                             "$ref": "#/definitions/dto.ErrorResponse"
                         }
@@ -1007,7 +1007,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "localhost:8080",
-	BasePath:         "/",
+	BasePath:         "/api/v1",
 	Schemes:          []string{},
 	Title:            "Showcaster API",
 	Description:      "REST API for the Showcaster AI affiliate video generation SaaS. Handles user authentication, video generation jobs, and image uploads.",
