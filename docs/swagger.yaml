@@ -1,0 +1,721 @@
+basePath: /
+definitions:
+  dto.CreateJobDocResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.CreateJobResponseData'
+      success:
+        example: true
+        type: boolean
+    type: object
+  dto.CreateJobRequest:
+    properties:
+      modelImageUrl:
+        type: string
+      orientation:
+        enum:
+        - portrait
+        - landscape
+        - square
+        type: string
+      productCategory:
+        enum:
+        - beauty
+        - fashion
+        - electronics
+        - health
+        type: string
+      productImageUrl:
+        type: string
+      productName:
+        maxLength: 200
+        type: string
+      resolution:
+        enum:
+        - 720p
+        - 1080p
+        - 4k
+        type: string
+      targetAudience:
+        enum:
+        - man
+        - woman
+        - children
+        - unisex
+        type: string
+    required:
+    - modelImageUrl
+    - orientation
+    - productCategory
+    - productImageUrl
+    - productName
+    - resolution
+    - targetAudience
+    type: object
+  dto.CreateJobResponseData:
+    properties:
+      jobId:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+    type: object
+  dto.DeleteJobResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.DeleteJobResponseData'
+      success:
+        example: true
+        type: boolean
+    type: object
+  dto.DeleteJobResponseData:
+    properties:
+      message:
+        example: job deleted successfully
+        type: string
+    type: object
+  dto.ErrorResponse:
+    properties:
+      error:
+        example: human-readable error message
+        type: string
+      success:
+        example: false
+        type: boolean
+    type: object
+  dto.GetJobResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.GetJobResponseData'
+      success:
+        example: true
+        type: boolean
+    type: object
+  dto.GetJobResponseData:
+    properties:
+      createdAt:
+        example: "2024-05-18T10:00:00Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      progress:
+        example: 25
+        type: integer
+      status:
+        example: processing
+        type: string
+      steps:
+        items:
+          $ref: '#/definitions/dto.StepResponseDoc'
+        type: array
+    type: object
+  dto.HealthResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.HealthResponseData'
+      success:
+        example: true
+        type: boolean
+    type: object
+  dto.HealthResponseData:
+    properties:
+      status:
+        example: ok
+        type: string
+    type: object
+  dto.JobSummaryDoc:
+    properties:
+      createdAt:
+        example: "2024-05-18T10:00:00Z"
+        type: string
+      id:
+        example: 550e8400-e29b-41d4-a716-446655440000
+        type: string
+      status:
+        example: completed
+        type: string
+      thumbnailUrl:
+        example: https://res.cloudinary.com/demo/image/upload/v1716000000/showcaster/images/thumb.jpg
+        type: string
+    type: object
+  dto.ListJobsResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.ListJobsResponseData'
+      success:
+        example: true
+        type: boolean
+    type: object
+  dto.ListJobsResponseData:
+    properties:
+      jobs:
+        items:
+          $ref: '#/definitions/dto.JobSummaryDoc'
+        type: array
+      limit:
+        example: 10
+        type: integer
+      page:
+        example: 1
+        type: integer
+      total:
+        example: 42
+        type: integer
+    type: object
+  dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dto.LoginResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.LoginResponseData'
+      success:
+        example: true
+        type: boolean
+    type: object
+  dto.LoginResponseData:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NWYwZjBhNy0xMjM0LTQ1NjctODkwYS1iY2RlZjAxMjM0NTYiLCJpYXQiOjE3MTYwMDAwMDAsImV4cCI6MTcxNjA4NjQwMH0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+        type: string
+    type: object
+  dto.RegisterRequest:
+    properties:
+      email:
+        maxLength: 254
+        type: string
+      fullName:
+        maxLength: 100
+        type: string
+      password:
+        maxLength: 72
+        minLength: 8
+        type: string
+    required:
+    - email
+    - fullName
+    - password
+    type: object
+  dto.RegisterResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.RegisterResponseData'
+      success:
+        example: true
+        type: boolean
+    type: object
+  dto.RegisterResponseData:
+    properties:
+      message:
+        example: registration successful; please verify your email with the OTP sent
+        type: string
+    type: object
+  dto.ResendOTPRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  dto.ResendOTPResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.ResendOTPResponseData'
+      success:
+        example: true
+        type: boolean
+    type: object
+  dto.ResendOTPResponseData:
+    properties:
+      message:
+        example: OTP resent successfully
+        type: string
+    type: object
+  dto.StepResponseDoc:
+    properties:
+      name:
+        example: Hook
+        type: string
+      status:
+        example: completed
+        type: string
+      videoUrl:
+        example: https://res.cloudinary.com/demo/video/upload/v1716000000/showcaster/videos/hook.mp4
+        type: string
+    type: object
+  dto.UploadImageResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.UploadImageResponseData'
+      success:
+        example: true
+        type: boolean
+    type: object
+  dto.UploadImageResponseData:
+    properties:
+      url:
+        example: https://res.cloudinary.com/demo/image/upload/v1716000000/showcaster/images/abc123.jpg
+        type: string
+    type: object
+  dto.ValidationErrorResponse:
+    properties:
+      error:
+        example: 'validation failed: Email email'
+        type: string
+      field:
+        example: Email
+        type: string
+      success:
+        example: false
+        type: boolean
+    type: object
+  dto.VerifyOTPRequest:
+    properties:
+      email:
+        type: string
+      otp:
+        type: string
+    required:
+    - email
+    - otp
+    type: object
+  dto.VerifyOTPResponse:
+    properties:
+      data:
+        $ref: '#/definitions/dto.LoginResponseData'
+      success:
+        example: true
+        type: boolean
+    type: object
+host: localhost:8080
+info:
+  contact:
+    name: Showcaster Support
+  description: REST API for the Showcaster AI affiliate video generation SaaS. Handles
+    user authentication, video generation jobs, and image uploads.
+  license:
+    name: MIT
+  termsOfService: http://swagger.io/terms/
+  title: Showcaster API
+  version: "1.0"
+paths:
+  /api/auth/login:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Authenticates a registered and verified user with email and password.
+        Returns a signed HS256 JWT valid for exactly 24 hours (86400 seconds).
+        Both wrong-password and unknown-email return the same 401 body to prevent user enumeration.
+      parameters:
+      - description: Login credentials
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'JWT issued — include as ''Authorization: Bearer <token>''
+            on protected routes'
+          schema:
+            $ref: '#/definitions/dto.LoginResponse'
+        "400":
+          description: Missing or invalid field
+          schema:
+            $ref: '#/definitions/dto.ValidationErrorResponse'
+        "401":
+          description: Invalid credentials (wrong password or unknown email)
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "503":
+          description: Database unavailable
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Login
+      tags:
+      - Auth
+  /api/auth/register:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Creates a new user account with the provided email, full name, and password.
+        On success a 6-digit numeric OTP is sent to the registered email address.
+        The account must be verified via POST /api/auth/verify-otp before login is possible.
+      parameters:
+      - description: Registration payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Account created — OTP sent to email
+          schema:
+            $ref: '#/definitions/dto.RegisterResponse'
+        "400":
+          description: Validation error (missing or invalid field)
+          schema:
+            $ref: '#/definitions/dto.ValidationErrorResponse'
+        "409":
+          description: Email already registered
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "503":
+          description: Database unavailable
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Register a new user
+      tags:
+      - Auth
+  /api/auth/resend-otp:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Generates a fresh 6-digit OTP, resets the failure counter, and sends it to the user's email.
+        Use this when the original OTP has expired or was never received.
+      parameters:
+      - description: Registered email address
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResendOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: New OTP sent
+          schema:
+            $ref: '#/definitions/dto.ResendOTPResponse'
+        "400":
+          description: Missing or invalid email
+          schema:
+            $ref: '#/definitions/dto.ValidationErrorResponse'
+        "404":
+          description: Email not found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "503":
+          description: Database unavailable
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Resend OTP
+      tags:
+      - Auth
+  /api/auth/verify-otp:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Verifies the 6-digit numeric OTP that was sent to the user's email during registration.
+        On success the account is marked as verified and a JWT is returned (same shape as login).
+        The OTP expires after 10 minutes. After 5 consecutive wrong attempts the OTP is permanently invalidated.
+      parameters:
+      - description: Email and 6-digit OTP
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.VerifyOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Account verified — JWT issued
+          schema:
+            $ref: '#/definitions/dto.VerifyOTPResponse'
+        "400":
+          description: OTP expired, locked (≥5 failures), or invalid
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Email not found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "409":
+          description: Account already verified
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "503":
+          description: Database unavailable
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Verify email OTP
+      tags:
+      - Auth
+  /api/jobs:
+    get:
+      description: |-
+        Returns a paginated list of the authenticated user's jobs ordered by `createdAt` descending.
+        Only jobs belonging to the authenticated user are returned.
+
+        **Pagination defaults:** page=1, limit=100
+        **Limit range:** 0–100. When limit=0 an empty array is returned alongside the total count.
+      parameters:
+      - description: Page number (min 1, default 1)
+        in: query
+        minimum: 1
+        name: page
+        type: integer
+      - description: Items per page (0–100, default 100)
+        in: query
+        maximum: 100
+        minimum: 0
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Paginated job list with metadata
+          schema:
+            $ref: '#/definitions/dto.ListJobsResponse'
+        "400":
+          description: Invalid page or limit value
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Missing or invalid JWT
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "503":
+          description: Database unavailable
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: List jobs
+      tags:
+      - Jobs
+  /api/jobs/{id}:
+    delete:
+      description: |-
+        Permanently deletes a job and all its associated steps in a single atomic transaction.
+
+        **Constraints:**
+        - Only the job owner can delete it.
+        - Only jobs with status `completed` or `failed` can be deleted.
+        - Attempting to delete a `pending` or `processing` job returns 409.
+      parameters:
+      - description: Job ID (UUID v4)
+        example: 550e8400-e29b-41d4-a716-446655440000
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job and all steps deleted
+          schema:
+            $ref: '#/definitions/dto.DeleteJobResponse'
+        "401":
+          description: Missing or invalid JWT
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Job belongs to a different user
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Job not found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "409":
+          description: Job is still pending or processing — cannot delete
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "503":
+          description: Database unavailable
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Delete a job
+      tags:
+      - Jobs
+    get:
+      description: |-
+        Returns the full status of a job including all 4 pipeline steps and their output video URLs.
+
+        **Job status values:** pending → processing → completed | failed
+        **Step status values:** pending → processing → completed | failed
+        **Progress:** integer 0–100, calculated as (completed steps / 4) × 100
+
+        `videoUrl` is `null` for steps that are still pending or processing.
+        It becomes a Cloudinary HTTPS URL once the step is completed.
+      parameters:
+      - description: Job ID (UUID v4)
+        example: 550e8400-e29b-41d4-a716-446655440000
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Job details with step statuses
+          schema:
+            $ref: '#/definitions/dto.GetJobResponse'
+        "401":
+          description: Missing or invalid JWT
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "403":
+          description: Job belongs to a different user
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "404":
+          description: Job not found
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "503":
+          description: Database unavailable
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Get job status
+      tags:
+      - Jobs
+  /api/jobs/generate:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Atomically creates one Job record (status=pending) and four Step records
+        (Hook, Problem, Solution, Closure — each status=pending) in a single DB transaction,
+        then enqueues the job for async processing by the background worker.
+
+        **Accepted enum values:**
+        - `productCategory`: beauty, fashion, electronics, health
+        - `targetAudience`: man, woman, children, unisex
+        - `orientation`: portrait, landscape, square
+        - `resolution`: 720p, 1080p, 4k
+
+        Both image URLs must be valid HTTPS URLs (must start with `https://`).
+      parameters:
+      - description: Job payload
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateJobRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Job accepted — poll GET /api/jobs/{jobId} for status
+          schema:
+            $ref: '#/definitions/dto.CreateJobDocResponse'
+        "400":
+          description: Missing or invalid field
+          schema:
+            $ref: '#/definitions/dto.ValidationErrorResponse'
+        "401":
+          description: Missing or invalid JWT
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "503":
+          description: Job queue full or database unavailable
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Submit a video generation job
+      tags:
+      - Jobs
+  /api/upload/image:
+    post:
+      consumes:
+      - multipart/form-data
+      description: |-
+        Uploads a JPEG or PNG image to Cloudinary and returns the public HTTPS URL.
+        Use the returned URL as `modelImageUrl` or `productImageUrl` when submitting a job.
+
+        **Constraints:**
+        - File must be sent in the `file` multipart form field.
+        - Accepted MIME types: `image/jpeg`, `image/png` (detected from file content, not the header).
+        - Maximum file size: 10 MB.
+      parameters:
+      - description: Image file (JPEG or PNG, max 10 MB)
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Upload successful — use the URL in job submission
+          schema:
+            $ref: '#/definitions/dto.UploadImageResponse'
+        "400":
+          description: Missing `file` field in form data
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "401":
+          description: Missing or invalid JWT
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "413":
+          description: File exceeds the 10 MB size limit
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "415":
+          description: Unsupported file type (only JPEG and PNG accepted)
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+        "502":
+          description: Cloudinary upload failed
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Upload a model or product image
+      tags:
+      - Upload
+  /health:
+    get:
+      description: |-
+        Verifies that the service is running and the database is reachable.
+        Attempts a DB ping with a 2-second deadline; always responds within 3 seconds.
+
+        Suitable for use as a liveness/readiness probe in container orchestration.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Service and database are healthy
+          schema:
+            $ref: '#/definitions/dto.HealthResponse'
+        "503":
+          description: Database ping failed or timed out
+          schema:
+            $ref: '#/definitions/dto.ErrorResponse'
+      summary: Health check
+      tags:
+      - System
+securityDefinitions:
+  BearerAuth:
+    description: 'Enter your JWT token as: Bearer <token>'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -1,0 +1,998 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "REST API for the Showcaster AI affiliate video generation SaaS. Handles user authentication, video generation jobs, and image uploads.",
+        "title": "Showcaster API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "Showcaster Support"
+        },
+        "license": {
+            "name": "MIT"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/",
+    "paths": {
+        "/api/auth/login": {
+            "post": {
+                "description": "Authenticates a registered and verified user with email and password.\nReturns a signed HS256 JWT valid for exactly 24 hours (86400 seconds).\nBoth wrong-password and unknown-email return the same 401 body to prevent user enumeration.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Login",
+                "parameters": [
+                    {
+                        "description": "Login credentials",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.LoginRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "JWT issued — include as 'Authorization: Bearer \u003ctoken\u003e' on protected routes",
+                        "schema": {
+                            "$ref": "#/definitions/dto.LoginResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing or invalid field",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ValidationErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Invalid credentials (wrong password or unknown email)",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Database unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/register": {
+            "post": {
+                "description": "Creates a new user account with the provided email, full name, and password.\nOn success a 6-digit numeric OTP is sent to the registered email address.\nThe account must be verified via POST /api/auth/verify-otp before login is possible.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Register a new user",
+                "parameters": [
+                    {
+                        "description": "Registration payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.RegisterRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Account created — OTP sent to email",
+                        "schema": {
+                            "$ref": "#/definitions/dto.RegisterResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Validation error (missing or invalid field)",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ValidationErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Email already registered",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Database unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/resend-otp": {
+            "post": {
+                "description": "Generates a fresh 6-digit OTP, resets the failure counter, and sends it to the user's email.\nUse this when the original OTP has expired or was never received.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Resend OTP",
+                "parameters": [
+                    {
+                        "description": "Registered email address",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.ResendOTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "New OTP sent",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ResendOTPResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing or invalid email",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ValidationErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Email not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Database unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/auth/verify-otp": {
+            "post": {
+                "description": "Verifies the 6-digit numeric OTP that was sent to the user's email during registration.\nOn success the account is marked as verified and a JWT is returned (same shape as login).\nThe OTP expires after 10 minutes. After 5 consecutive wrong attempts the OTP is permanently invalidated.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Verify email OTP",
+                "parameters": [
+                    {
+                        "description": "Email and 6-digit OTP",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.VerifyOTPRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Account verified — JWT issued",
+                        "schema": {
+                            "$ref": "#/definitions/dto.VerifyOTPResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "OTP expired, locked (≥5 failures), or invalid",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Email not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Account already verified",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Database unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/jobs": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns a paginated list of the authenticated user's jobs ordered by `createdAt` descending.\nOnly jobs belonging to the authenticated user are returned.\n\n**Pagination defaults:** page=1, limit=100\n**Limit range:** 0–100. When limit=0 an empty array is returned alongside the total count.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Jobs"
+                ],
+                "summary": "List jobs",
+                "parameters": [
+                    {
+                        "minimum": 1,
+                        "type": "integer",
+                        "description": "Page number (min 1, default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "maximum": 100,
+                        "minimum": 0,
+                        "type": "integer",
+                        "description": "Items per page (0–100, default 100)",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Paginated job list with metadata",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ListJobsResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid page or limit value",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid JWT",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Database unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/jobs/generate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Atomically creates one Job record (status=pending) and four Step records\n(Hook, Problem, Solution, Closure — each status=pending) in a single DB transaction,\nthen enqueues the job for async processing by the background worker.\n\n**Accepted enum values:**\n- `productCategory`: beauty, fashion, electronics, health\n- `targetAudience`: man, woman, children, unisex\n- `orientation`: portrait, landscape, square\n- `resolution`: 720p, 1080p, 4k\n\nBoth image URLs must be valid HTTPS URLs (must start with `https://`).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Jobs"
+                ],
+                "summary": "Submit a video generation job",
+                "parameters": [
+                    {
+                        "description": "Job payload",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateJobRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Job accepted — poll GET /api/jobs/{jobId} for status",
+                        "schema": {
+                            "$ref": "#/definitions/dto.CreateJobDocResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing or invalid field",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ValidationErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid JWT",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Job queue full or database unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/jobs/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Returns the full status of a job including all 4 pipeline steps and their output video URLs.\n\n**Job status values:** pending → processing → completed | failed\n**Step status values:** pending → processing → completed | failed\n**Progress:** integer 0–100, calculated as (completed steps / 4) × 100\n\n`videoUrl` is `null` for steps that are still pending or processing.\nIt becomes a Cloudinary HTTPS URL once the step is completed.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Jobs"
+                ],
+                "summary": "Get job status",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "550e8400-e29b-41d4-a716-446655440000",
+                        "description": "Job ID (UUID v4)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job details with step statuses",
+                        "schema": {
+                            "$ref": "#/definitions/dto.GetJobResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid JWT",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Job belongs to a different user",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Job not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Database unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Permanently deletes a job and all its associated steps in a single atomic transaction.\n\n**Constraints:**\n- Only the job owner can delete it.\n- Only jobs with status `completed` or `failed` can be deleted.\n- Attempting to delete a `pending` or `processing` job returns 409.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Jobs"
+                ],
+                "summary": "Delete a job",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "550e8400-e29b-41d4-a716-446655440000",
+                        "description": "Job ID (UUID v4)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Job and all steps deleted",
+                        "schema": {
+                            "$ref": "#/definitions/dto.DeleteJobResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid JWT",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Job belongs to a different user",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Job not found",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Job is still pending or processing — cannot delete",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Database unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/upload/image": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Uploads a JPEG or PNG image to Cloudinary and returns the public HTTPS URL.\nUse the returned URL as `modelImageUrl` or `productImageUrl` when submitting a job.\n\n**Constraints:**\n- File must be sent in the `file` multipart form field.\n- Accepted MIME types: `image/jpeg`, `image/png` (detected from file content, not the header).\n- Maximum file size: 10 MB.",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Upload"
+                ],
+                "summary": "Upload a model or product image",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "Image file (JPEG or PNG, max 10 MB)",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Upload successful — use the URL in job submission",
+                        "schema": {
+                            "$ref": "#/definitions/dto.UploadImageResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing `file` field in form data",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Missing or invalid JWT",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "413": {
+                        "description": "File exceeds the 10 MB size limit",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "415": {
+                        "description": "Unsupported file type (only JPEG and PNG accepted)",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Cloudinary upload failed",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "description": "Verifies that the service is running and the database is reachable.\nAttempts a DB ping with a 2-second deadline; always responds within 3 seconds.\n\nSuitable for use as a liveness/readiness probe in container orchestration.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "System"
+                ],
+                "summary": "Health check",
+                "responses": {
+                    "200": {
+                        "description": "Service and database are healthy",
+                        "schema": {
+                            "$ref": "#/definitions/dto.HealthResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Database ping failed or timed out",
+                        "schema": {
+                            "$ref": "#/definitions/dto.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "dto.CreateJobDocResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.CreateJobResponseData"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "dto.CreateJobRequest": {
+            "type": "object",
+            "required": [
+                "modelImageUrl",
+                "orientation",
+                "productCategory",
+                "productImageUrl",
+                "productName",
+                "resolution",
+                "targetAudience"
+            ],
+            "properties": {
+                "modelImageUrl": {
+                    "type": "string"
+                },
+                "orientation": {
+                    "type": "string",
+                    "enum": [
+                        "portrait",
+                        "landscape",
+                        "square"
+                    ]
+                },
+                "productCategory": {
+                    "type": "string",
+                    "enum": [
+                        "beauty",
+                        "fashion",
+                        "electronics",
+                        "health"
+                    ]
+                },
+                "productImageUrl": {
+                    "type": "string"
+                },
+                "productName": {
+                    "type": "string",
+                    "maxLength": 200
+                },
+                "resolution": {
+                    "type": "string",
+                    "enum": [
+                        "720p",
+                        "1080p",
+                        "4k"
+                    ]
+                },
+                "targetAudience": {
+                    "type": "string",
+                    "enum": [
+                        "man",
+                        "woman",
+                        "children",
+                        "unisex"
+                    ]
+                }
+            }
+        },
+        "dto.CreateJobResponseData": {
+            "type": "object",
+            "properties": {
+                "jobId": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                }
+            }
+        },
+        "dto.DeleteJobResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.DeleteJobResponseData"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "dto.DeleteJobResponseData": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "job deleted successfully"
+                }
+            }
+        },
+        "dto.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "human-readable error message"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "dto.GetJobResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.GetJobResponseData"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "dto.GetJobResponseData": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string",
+                    "example": "2024-05-18T10:00:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "progress": {
+                    "type": "integer",
+                    "example": 25
+                },
+                "status": {
+                    "type": "string",
+                    "example": "processing"
+                },
+                "steps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.StepResponseDoc"
+                    }
+                }
+            }
+        },
+        "dto.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.HealthResponseData"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "dto.HealthResponseData": {
+            "type": "object",
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "example": "ok"
+                }
+            }
+        },
+        "dto.JobSummaryDoc": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string",
+                    "example": "2024-05-18T10:00:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "550e8400-e29b-41d4-a716-446655440000"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "completed"
+                },
+                "thumbnailUrl": {
+                    "type": "string",
+                    "example": "https://res.cloudinary.com/demo/image/upload/v1716000000/showcaster/images/thumb.jpg"
+                }
+            }
+        },
+        "dto.ListJobsResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.ListJobsResponseData"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "dto.ListJobsResponseData": {
+            "type": "object",
+            "properties": {
+                "jobs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/dto.JobSummaryDoc"
+                    }
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 10
+                },
+                "page": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 42
+                }
+            }
+        },
+        "dto.LoginRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "password": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.LoginResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.LoginResponseData"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "dto.LoginResponseData": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NWYwZjBhNy0xMjM0LTQ1NjctODkwYS1iY2RlZjAxMjM0NTYiLCJpYXQiOjE3MTYwMDAwMDAsImV4cCI6MTcxNjA4NjQwMH0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
+                }
+            }
+        },
+        "dto.RegisterRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "fullName",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "maxLength": 254
+                },
+                "fullName": {
+                    "type": "string",
+                    "maxLength": 100
+                },
+                "password": {
+                    "type": "string",
+                    "maxLength": 72,
+                    "minLength": 8
+                }
+            }
+        },
+        "dto.RegisterResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.RegisterResponseData"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "dto.RegisterResponseData": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "registration successful; please verify your email with the OTP sent"
+                }
+            }
+        },
+        "dto.ResendOTPRequest": {
+            "type": "object",
+            "required": [
+                "email"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.ResendOTPResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.ResendOTPResponseData"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "dto.ResendOTPResponseData": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "example": "OTP resent successfully"
+                }
+            }
+        },
+        "dto.StepResponseDoc": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "Hook"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "completed"
+                },
+                "videoUrl": {
+                    "type": "string",
+                    "example": "https://res.cloudinary.com/demo/video/upload/v1716000000/showcaster/videos/hook.mp4"
+                }
+            }
+        },
+        "dto.UploadImageResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.UploadImageResponseData"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "dto.UploadImageResponseData": {
+            "type": "object",
+            "properties": {
+                "url": {
+                    "type": "string",
+                    "example": "https://res.cloudinary.com/demo/image/upload/v1716000000/showcaster/images/abc123.jpg"
+                }
+            }
+        },
+        "dto.ValidationErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string",
+                    "example": "validation failed: Email email"
+                },
+                "field": {
+                    "type": "string",
+                    "example": "Email"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": false
+                }
+            }
+        },
+        "dto.VerifyOTPRequest": {
+            "type": "object",
+            "required": [
+                "email",
+                "otp"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string"
+                },
+                "otp": {
+                    "type": "string"
+                }
+            }
+        },
+        "dto.VerifyOTPResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/dto.LoginResponseData"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Enter your JWT token as: Bearer \u003ctoken\u003e",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

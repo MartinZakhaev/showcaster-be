@@ -1,0 +1,52 @@
+# ── Environment & secrets ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Compiled binaries ────────────────────────────────────────────────────────
+# Any binary built from cmd/server (go build -o <name> ./cmd/server)
+server
+showcaster-be
+/bin/
+/dist/
+
+# ── Database ─────────────────────────────────────────────────────────────────
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# ── Go toolchain ─────────────────────────────────────────────────────────────
+# Vendor directory (if using go mod vendor)
+vendor/
+
+# Go test cache and coverage output
+*.test
+*.out
+coverage.html
+coverage.txt
+
+# Go workspace file (local only)
+go.work
+go.work.sum
+
+# ── IDE & editor ─────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+Thumbs.db
+desktop.ini
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Temp / scratch ───────────────────────────────────────────────────────────
+tmp/
+temp/
