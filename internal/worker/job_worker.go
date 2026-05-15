@@ -112,6 +112,17 @@ func (w *JobWorker) processJob(ctx context.Context, job models.Job) {
 	completedCount := 0
 
 	for _, stepName := range stepOrder {
+		// Check if the job was cancelled before starting each step.
+		var currentJob models.Job
+		if err := w.db.Select("status").First(&currentJob, "id = ?", job.ID).Error; err == nil {
+			if currentJob.Status == "cancelled" {
+				w.logger.Info("job_worker: job cancelled, stopping pipeline",
+					slog.String("job_id", job.ID),
+					slog.String("at_step", stepName),
+				)
+				return
+			}
+		}
 		step, ok := stepByName[stepName]
 		if !ok {
 			w.logger.Error("job_worker: step not found",

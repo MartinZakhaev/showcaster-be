@@ -1,0 +1,146 @@
+{
+  "title": "Showcaster Load Test",
+  "uid": "showcaster-loadtest",
+  "schemaVersion": 38,
+  "version": 2,
+  "refresh": "5s",
+  "time": { "from": "now-15m", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "HTTP Request Rate (req/s)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{service=\"showcaster_be\"}[30s])) by (method, path, status_code)",
+          "legendFormat": "{{method}} {{path}} {{status_code}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "HTTP Request Duration p50 / p95 / p99 (ms)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{service=\"showcaster_be\"}[30s])) by (le, path)) * 1000",
+          "legendFormat": "p50 {{path}}"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{service=\"showcaster_be\"}[30s])) by (le, path)) * 1000",
+          "legendFormat": "p95 {{path}}"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{service=\"showcaster_be\"}[30s])) by (le, path)) * 1000",
+          "legendFormat": "p99 {{path}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "HTTP Error Rate (%)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{service=\"showcaster_be\",status_code=~\"5..\"}[30s])) / sum(rate(http_requests_total{service=\"showcaster_be\"}[30s])) * 100",
+          "legendFormat": "5xx error rate %"
+        },
+        {
+          "expr": "sum(rate(http_requests_total{service=\"showcaster_be\",status_code=~\"4..\"}[30s])) / sum(rate(http_requests_total{service=\"showcaster_be\"}[30s])) * 100",
+          "legendFormat": "4xx error rate %"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "In-Flight Requests",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "http_requests_in_progress_total{service=\"showcaster_be\"}",
+          "legendFormat": "{{method}} {{path}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Go Goroutines",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "go_goroutines{job=\"showcaster_be\"}",
+          "legendFormat": "goroutines"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Go Heap Memory (MB)",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 16, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "go_memstats_heap_alloc_bytes{job=\"showcaster_be\"} / 1024 / 1024",
+          "legendFormat": "heap alloc MB"
+        },
+        {
+          "expr": "go_memstats_heap_sys_bytes{job=\"showcaster_be\"} / 1024 / 1024",
+          "legendFormat": "heap sys MB"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Go GC Pause Duration (ms)",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 16, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(go_gc_duration_seconds_sum{job=\"showcaster_be\"}[30s]) * 1000",
+          "legendFormat": "GC pause ms/s"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "k6 — Virtual Users",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 24, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "k6_vus",
+          "legendFormat": "active VUs"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "k6 — Request Duration p95 (ms)",
+      "type": "timeseries",
+      "gridPos": { "x": 8, "y": 24, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(k6_http_req_duration_bucket[30s])) by (le)) * 1000",
+          "legendFormat": "p95 ms"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "k6 — Checks Passed Rate (%)",
+      "type": "timeseries",
+      "gridPos": { "x": 16, "y": 24, "w": 8, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(k6_checks_total{result=\"pass\"}[30s]) / rate(k6_checks_total[30s]) * 100",
+          "legendFormat": "checks passed %"
+        }
+      ]
+    }
+  ]
+}

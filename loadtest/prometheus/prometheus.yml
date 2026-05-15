@@ -1,0 +1,15 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  # Showcaster backend — Go runtime + HTTP metrics via fiberprometheus
+  - job_name: showcaster_be
+    static_configs:
+      - targets: ['host.docker.internal:8080']
+    metrics_path: /metrics
+
+  # k6 real-time metrics pushed via the k6 Prometheus remote-write output
+  - job_name: k6
+    static_configs:
+      - targets: ['host.docker.internal:6565']

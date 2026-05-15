@@ -16,6 +16,7 @@ type Job struct {
 	Orientation     string    `gorm:"not null;type:text"`
 	Resolution      string    `gorm:"not null;type:text"`
 	ThumbnailURL    string    `gorm:"type:text"`
+	DrivingAudioURL string    `gorm:"column:driving_audio_url;default:''" json:"drivingAudioUrl,omitempty"`
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
 	Steps           []Step    `gorm:"foreignKey:JobID;constraint:OnDelete:CASCADE"`

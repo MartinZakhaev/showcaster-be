@@ -1,0 +1,49 @@
+version: '3.8'
+
+# Load testing observability stack for showcaster-be.
+#
+# Services:
+#   prometheus  — scrapes /metrics from the running server + k6 remote-write
+#   grafana     — pre-provisioned dashboard at http://localhost:3000
+#                 (admin / admin)
+#
+# Usage:
+#   1. Start the showcaster-be server on your host (port 8080)
+#   2. docker compose up -d
+#   3. Open http://localhost:3000  →  Showcaster Load Test dashboard
+#   4. Run a k6 script (see README.md for commands)
+#   5. docker compose down  when done
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.52.0
+    container_name: showcaster_prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-remote-write-receiver'   # accepts k6 remote-write
+    ports:
+      - '9090:9090'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'   # reach the server on the host
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: showcaster_grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - '3000:3000'
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+volumes:
+  grafana_data:

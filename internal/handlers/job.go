@@ -169,7 +169,43 @@ func (h *JobHandler) ListJobs(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(dto.OK(resp))
 }
 
-// DeleteJob handles DELETE /api/jobs/:id.
+// CancelJob handles POST /api/v1/jobs/:id/cancel.
+//
+//	@Summary		Cancel a running job
+//	@Description	Cancels a pending or processing job. The background worker will stop after the current step completes.
+//	@Tags			Jobs
+//	@Produce		json
+//	@Security		BearerAuth
+//	@Param			id	path		string				true	"Job ID (UUID v4)"
+//	@Success		200	{object}	dto.Response		"Job cancelled"
+//	@Failure		401	{object}	dto.ErrorResponse	"Missing or invalid JWT"
+//	@Failure		403	{object}	dto.ErrorResponse	"Job belongs to a different user"
+//	@Failure		404	{object}	dto.ErrorResponse	"Job not found"
+//	@Failure		409	{object}	dto.ErrorResponse	"Job is already in a terminal state"
+//	@Failure		503	{object}	dto.ErrorResponse	"Database unavailable"
+//	@Router			/jobs/{id}/cancel [post]
+func (h *JobHandler) CancelJob(c *fiber.Ctx) error {
+	userID := middleware.ExtractUserID(c)
+	jobID := c.Params("id")
+
+	err := h.JobService.CancelJob(c.Context(), userID, jobID)
+	if err != nil {
+		switch {
+		case errors.Is(err, services.ErrJobNotFound):
+			return c.Status(fiber.StatusNotFound).JSON(dto.Fail(err.Error()))
+		case errors.Is(err, services.ErrJobForbidden):
+			return c.Status(fiber.StatusForbidden).JSON(dto.Fail(err.Error()))
+		case errors.Is(err, services.ErrJobConflict):
+			return c.Status(fiber.StatusConflict).JSON(dto.Fail("job is already completed, failed, or cancelled"))
+		case errors.Is(err, services.ErrDBUnavailable):
+			return c.Status(fiber.StatusServiceUnavailable).JSON(dto.Fail(err.Error()))
+		default:
+			return c.Status(fiber.StatusServiceUnavailable).JSON(dto.Fail("service temporarily unavailable"))
+		}
+	}
+
+	return c.Status(fiber.StatusOK).JSON(dto.OK(fiber.Map{"message": "job cancellation requested"}))
+}
 //
 //	@Summary		Delete a job
 //	@Description	Permanently deletes a job and all its associated steps in a single atomic transaction.

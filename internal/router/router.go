@@ -2,7 +2,9 @@ package router
 
 import (
 	scalar "github.com/MarceloPetrucio/go-scalar-api-reference"
+	fiberprometheus "github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/recover"
 	"github.com/swaggo/swag"
 
@@ -15,6 +17,7 @@ import (
 // Unversioned routes (infrastructure):
 //
 //	GET  /health            — liveness / readiness probe
+//	GET  /metrics           — Prometheus metrics (HTTP + Go runtime)
 //	GET  /docs              — Scalar API UI
 //	GET  /docs/openapi.json — raw OpenAPI spec
 //
@@ -38,10 +41,25 @@ func Setup(
 	jobH *handlers.JobHandler,
 	uploadH *handlers.UploadHandler,
 	healthH *handlers.HealthHandler,
+	debugH *handlers.DebugHandler,
 	jwtSecret string,
 ) {
+	// CORS must be the very first middleware so preflight OPTIONS requests
+	// get the correct headers before any other middleware can intercept them.
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "*",
+		AllowMethods: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+		AllowHeaders: "Origin,Content-Type,Accept,Authorization",
+		MaxAge:       86400,
+	}))
+
 	// Global panic recovery — returns HTTP 500 on any unhandled panic.
 	app.Use(recover.New())
+
+	// Prometheus middleware — records per-route HTTP metrics.
+	prom := fiberprometheus.New("showcaster_be")
+	prom.RegisterAt(app, "/metrics")
+	app.Use(prom.Middleware)
 
 	// ── Infrastructure routes (unversioned) ──────────────────────────────────
 
@@ -96,5 +114,9 @@ func Setup(
 	protected.Post("/jobs/generate", jobH.CreateJob)
 	protected.Get("/jobs", jobH.ListJobs)
 	protected.Get("/jobs/:id", jobH.GetJob)
+	protected.Post("/jobs/:id/cancel", jobH.CancelJob)
 	protected.Delete("/jobs/:id", jobH.DeleteJob)
+
+	// Debug routes — protected by JWT to avoid accidental public exposure.
+	protected.Post("/debug/prompt", debugH.GeneratePrompt)
 }

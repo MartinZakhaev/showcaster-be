@@ -13,40 +13,26 @@ import (
 )
 
 // Job-specific sentinel errors returned by JobService methods.
-// Handlers map these to HTTP status codes so the service layer stays HTTP-agnostic.
 var (
-	// ErrJobNotFound is returned when the requested job does not exist in the DB.
-	ErrJobNotFound = errors.New("job not found")
-
-	// ErrJobForbidden is returned when the authenticated user does not own the job.
+	ErrJobNotFound  = errors.New("job not found")
 	ErrJobForbidden = errors.New("access to this job is forbidden")
-
-	// ErrJobConflict is returned when a delete is attempted on a pending/processing job.
-	ErrJobConflict = errors.New("job cannot be deleted while pending or processing")
-
-	// ErrQueueFull is returned when the job queue channel is full and the send would block.
-	ErrQueueFull = errors.New("service temporarily unavailable: job queue is full")
+	ErrJobConflict  = errors.New("job cannot be deleted while pending or processing")
+	ErrJobQueueFull = errors.New("service temporarily unavailable: job queue is full")
+	// ErrQueueFull kept as alias for backward compat
+	ErrQueueFull = ErrJobQueueFull
 )
 
 // Note: ErrDBUnavailable is already defined in auth_service.go and shared across the package.
 
 // JobService defines the contract for job CRUD and enqueuing operations.
 type JobService interface {
-	// CreateJob atomically creates a Job and 4 Steps in the DB, then enqueues the job.
-	// Returns ErrQueueFull if the channel is full, ErrDBUnavailable on DB errors.
 	CreateJob(ctx context.Context, userID string, req dto.CreateJobRequest) (dto.CreateJobResponse, error)
-
-	// GetJob fetches a job with its steps by ID.
-	// Returns ErrJobNotFound if the job does not exist, ErrJobForbidden on ownership mismatch.
 	GetJob(ctx context.Context, userID, jobID string) (dto.JobResponse, error)
-
-	// ListJobs returns a paginated list of jobs belonging to the authenticated user,
-	// ordered by createdAt DESC.
 	ListJobs(ctx context.Context, userID string, params dto.PaginationParams) (dto.JobListResponse, error)
-
-	// DeleteJob atomically deletes a job and its steps.
-	// Returns ErrJobNotFound, ErrJobForbidden, or ErrJobConflict as appropriate.
 	DeleteJob(ctx context.Context, userID, jobID string) error
+	// CancelJob marks a pending or processing job as cancelled.
+	// Returns ErrJobNotFound, ErrJobForbidden, or ErrJobConflict (if already terminal).
+	CancelJob(ctx context.Context, userID, jobID string) error
 }
 
 // jobService is the concrete implementation of JobService.
@@ -233,7 +219,40 @@ func (s *jobService) ListJobs(ctx context.Context, userID string, params dto.Pag
 	}, nil
 }
 
-// ─── DeleteJob ───────────────────────────────────────────────────────────────
+// ─── CancelJob ───────────────────────────────────────────────────────────────
+
+// CancelJob marks a pending or processing job as cancelled. The worker checks
+// for this status before each step and aborts gracefully.
+func (s *jobService) CancelJob(ctx context.Context, userID, jobID string) error {
+	var job models.Job
+	err := s.db.WithContext(ctx).First(&job, "id = ?", jobID).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrJobNotFound
+		}
+		s.logger.Error("cancel_job: db lookup failed", "job_id", jobID, "error", err)
+		return ErrDBUnavailable
+	}
+
+	if job.UserID != userID {
+		return ErrJobForbidden
+	}
+
+	// Only pending or processing jobs can be cancelled.
+	if job.Status != "pending" && job.Status != "processing" {
+		return ErrJobConflict
+	}
+
+	if err := s.db.WithContext(ctx).Model(&models.Job{}).
+		Where("id = ?", jobID).
+		Update("status", "cancelled").Error; err != nil {
+		s.logger.Error("cancel_job: update failed", "job_id", jobID, "error", err)
+		return ErrDBUnavailable
+	}
+
+	s.logger.Info("cancel_job: job cancelled", "job_id", jobID)
+	return nil
+}
 
 // DeleteJob enforces ownership and status constraints, then atomically deletes
 // the job and all associated steps in a transaction (requirements 11.1–11.5).
@@ -257,8 +276,6 @@ func (s *jobService) DeleteJob(ctx context.Context, userID, jobID string) error 
 	if job.Status == "pending" || job.Status == "processing" {
 		return ErrJobConflict
 	}
-
-	// Atomically delete Steps then Job (requirement 11.1).
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("job_id = ?", jobID).Delete(&models.Step{}).Error; err != nil {
 			s.logger.Error("delete_job: delete steps failed", "job_id", jobID, "error", err)

@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
-	"strings"
 	"time"
 
 	"showcaster-be/internal/models"
@@ -25,18 +25,17 @@ var (
 	ErrTimeout = errors.New("replicate: prediction timed out")
 )
 
-// stepPrompts maps a Step name to its text prompt template.
-// {productName} and {targetAudience} are replaced at runtime.
-var stepPrompts = map[string]string{
-	"Hook":     "Attention-grabbing opening scene showcasing {productName} for {targetAudience}",
-	"Problem":  "Scene depicting the problem that {productName} solves for {targetAudience}",
-	"Solution": "Scene showing {productName} as the solution, highlighting key benefits",
-	"Closure":  "Compelling call-to-action closing scene for {productName}",
-}
+// stepPrompts is no longer used — prompts are now built as structured JSON
+// by buildPrompt. Kept as documentation of the original scene intent.
+//
+// Hook:     Attention-grabbing opening scene
+// Problem:  Relatable problem scene
+// Solution: Product-as-solution scene
+// Closure:  Call-to-action closing scene
 
 const (
 	replicateBaseURL  = "https://api.replicate.com/v1"
-	replicateModel    = "wan-ai/wan2.1-i2v-480p"
+	replicateModel    = "wavespeedai/wan-2.1-i2v-480p"
 	pollInterval      = 5 * time.Second
 	generationTimeout = 10 * time.Minute
 )
@@ -68,31 +67,100 @@ func NewReplicateClient(apiToken string) *ReplicateClientImpl {
 
 // buildPrompt returns the text prompt for the given step, with {productName}
 // and {targetAudience} substituted from the job.
+// buildPrompt returns a structured JSON prompt for the given step so the model
+// receives consistent, machine-readable context about the product and scene.
 func buildPrompt(stepName string, job models.Job) string {
-	template, ok := stepPrompts[stepName]
-	if !ok {
-		// Fallback for unknown step names — should not happen in practice.
-		template = "Scene for {productName} targeting {targetAudience}"
+	sceneDescriptions := map[string]string{
+		"Hook":     "Attention-grabbing opening scene that immediately showcases the product",
+		"Problem":  "Relatable scene depicting the everyday problem the product solves",
+		"Solution": "Satisfying scene showing the product as the perfect solution with clear benefits",
+		"Closure":  "Compelling call-to-action closing scene with the product prominently featured",
 	}
-	prompt := strings.ReplaceAll(template, "{productName}", job.ProductName)
-	prompt = strings.ReplaceAll(prompt, "{targetAudience}", job.TargetAudience)
-	return prompt
+	scene, ok := sceneDescriptions[stepName]
+	if !ok {
+		scene = "Product showcase scene"
+	}
+
+	type promptPayload struct {
+		Scene           string `json:"scene"`
+		Step            string `json:"step"`
+		ProductName     string `json:"product_name"`
+		ProductCategory string `json:"product_category"`
+		TargetAudience  string `json:"target_audience"`
+		Orientation     string `json:"orientation"`
+		Resolution      string `json:"resolution"`
+		Style           string `json:"style"`
+	}
+
+	p := promptPayload{
+		Scene:           scene,
+		Step:            stepName,
+		ProductName:     job.ProductName,
+		ProductCategory: job.ProductCategory,
+		TargetAudience:  job.TargetAudience,
+		Orientation:     job.Orientation,
+		Resolution:      job.Resolution,
+		Style:           "cinematic, high quality, professional affiliate marketing video",
+	}
+
+	data, err := json.Marshal(p)
+	if err != nil {
+		// Fallback to plain text if marshalling fails
+		return fmt.Sprintf("%s: %s for %s (%s)", stepName, job.ProductName, job.TargetAudience, job.ProductCategory)
+	}
+	return string(data)
 }
 
-// predictionRequest is the JSON body sent to POST /v1/predictions.
+// predictionRequest is the JSON body sent to POST /v1/models/{owner}/{name}/predictions.
+// The model-specific endpoint only needs the input — no version or model field.
 type predictionRequest struct {
-	Version string                 `json:"version,omitempty"`
-	Model   string                 `json:"model"`
-	Input   map[string]interface{} `json:"input"`
+	Input map[string]interface{} `json:"input"`
 }
 
 // predictionResponse is the JSON body returned by the Replicate predictions
-// endpoints.
+// endpoints. Fields use json.RawMessage where the type varies across models
+// and error states.
 type predictionResponse struct {
-	ID     string   `json:"id"`
-	Status string   `json:"status"`
-	Output []string `json:"output"`
-	Error  string   `json:"error"`
+	ID     string          `json:"id"`
+	Status json.RawMessage `json:"status"` // can be string or number in error responses
+	Output json.RawMessage `json:"output"` // can be []string, string, or null
+	Error  interface{}     `json:"error"`  // can be string or object
+}
+
+// statusString safely extracts the status as a string regardless of whether
+// Replicate returned it as a JSON string or number.
+func (p *predictionResponse) statusString() string {
+	if len(p.Status) == 0 {
+		return ""
+	}
+	// Try string first (normal case: "starting", "processing", "succeeded", "failed")
+	var s string
+	if err := json.Unmarshal(p.Status, &s); err == nil {
+		return s
+	}
+	// Fallback: number — treat as failed
+	return "failed"
+}
+
+// outputURLs extracts video URLs from the output field which can be:
+//   - []string  (most models)
+//   - string    (some models return a single URL)
+//   - null / absent
+func (p *predictionResponse) outputURLs() []string {
+	if len(p.Output) == 0 || string(p.Output) == "null" {
+		return nil
+	}
+	// Try array of strings
+	var arr []string
+	if err := json.Unmarshal(p.Output, &arr); err == nil {
+		return arr
+	}
+	// Try single string
+	var s string
+	if err := json.Unmarshal(p.Output, &s); err == nil && s != "" {
+		return []string{s}
+	}
+	return nil
 }
 
 // doRequest performs an HTTP request with the Replicate Bearer token attached
@@ -122,40 +190,48 @@ func (c *ReplicateClientImpl) doRequest(method, url string, body interface{}, de
 	}
 	defer resp.Body.Close()
 
+	// Read the full body so we can include it in error messages.
+	var rawBody bytes.Buffer
+	rawBody.ReadFrom(resp.Body)
+
 	if dest != nil {
-		if err := json.NewDecoder(resp.Body).Decode(dest); err != nil {
-			return resp, fmt.Errorf("replicate: decode response: %w", err)
+		if err := json.Unmarshal(rawBody.Bytes(), dest); err != nil {
+			return resp, fmt.Errorf("replicate: decode response (status %d, body: %s): %w",
+				resp.StatusCode, rawBody.String(), err)
 		}
 	}
+
+	// Attach the raw body to the response for error reporting upstream.
+	resp.Body = io.NopCloser(&rawBody)
 	return resp, nil
 }
 
-// submitPrediction POSTs a new prediction to the Replicate API and returns the
-// prediction ID.
+// submitPrediction POSTs a new prediction to the model-specific endpoint
+// /v1/models/{owner}/{name}/predictions and returns the prediction ID.
 func (c *ReplicateClientImpl) submitPrediction(job models.Job, stepName string) (string, error) {
 	prompt := buildPrompt(stepName, job)
 
+	// Use the model-specific endpoint — no "model" field needed in the body.
+	// See: https://replicate.com/wavespeedai/wan-2.1-i2v-480p/api/api-reference
+	endpoint := fmt.Sprintf("%s/models/%s/predictions", replicateBaseURL, replicateModel)
+
 	reqBody := predictionRequest{
-		Model: replicateModel,
 		Input: map[string]interface{}{
-			"image":            job.ModelImageURL,
-			"product_image":    job.ProductImageURL,
-			"product_name":     job.ProductName,
-			"product_category": job.ProductCategory,
-			"target_audience":  job.TargetAudience,
-			"orientation":      job.Orientation,
-			"resolution":       job.Resolution,
-			"prompt":           prompt,
+			"image":  job.ModelImageURL,
+			"prompt": prompt,
 		},
 	}
 
 	var pred predictionResponse
-	resp, err := c.doRequest(http.MethodPost, replicateBaseURL+"/predictions", reqBody, &pred)
+	resp, err := c.doRequest(http.MethodPost, endpoint, reqBody, &pred)
 	if err != nil {
 		return "", err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("replicate: submit prediction: unexpected status %d", resp.StatusCode)
+		// Read the body for a useful error message
+		var errBody bytes.Buffer
+		errBody.ReadFrom(resp.Body)
+		return "", fmt.Errorf("replicate: submit prediction: status %d: %s", resp.StatusCode, errBody.String())
 	}
 	if pred.ID == "" {
 		return "", fmt.Errorf("replicate: submit prediction: empty prediction ID in response")
@@ -209,13 +285,11 @@ func (c *ReplicateClientImpl) Generate(ctx context.Context, job models.Job, step
 	for {
 		select {
 		case <-ctx.Done():
-			// Context cancelled — attempt to cancel the prediction and propagate.
 			_ = c.cancelPrediction(predictionID)
 			return "", ctx.Err()
 
 		case t := <-ticker.C:
 			if t.After(deadline) {
-				// 10-minute timeout exceeded.
 				_ = c.cancelPrediction(predictionID)
 				return "", ErrTimeout
 			}
@@ -226,12 +300,13 @@ func (c *ReplicateClientImpl) Generate(ctx context.Context, job models.Job, step
 				continue
 			}
 
-			switch pred.Status {
+			switch pred.statusString() {
 			case "succeeded":
-				if len(pred.Output) == 0 {
+				urls := pred.outputURLs()
+				if len(urls) == 0 {
 					return "", fmt.Errorf("replicate: prediction succeeded but output is empty")
 				}
-				return pred.Output[0], nil
+				return urls[0], nil
 
 			case "failed":
 				return "", ErrGenerationFailed
